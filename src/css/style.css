@@ -1,0 +1,232 @@
+body{
+	margin: 0;
+	padding: 0;
+}
+.toolbar{
+	align-items: center;
+	justify-content: center;
+	display: flex;
+	width: 100vw;
+	height: 8vh;
+	background-color: rgb(153, 153, 153);
+}
+.button_list{
+	margin: 0;
+	padding-left: 30px;
+	justify-content: center;
+	align-items: center;
+	list-style: none;
+	display: flex;
+}
+.element_button_list:not(:last-child){
+	margin-right: 10px;
+}
+.element_button_list_button{
+	width: 45px;
+	height: 45px;
+	border: none;
+	background-color: rgb(99, 99, 99);
+	border-radius: 3px;
+	box-shadow: 2px 2px 1px rgb(37, 37, 37);
+}
+.element_button_list_button:hover{
+	background-color: rgb(134, 133, 133);
+}
+.element_button_list_button:active{
+	translate: 2px 2px;
+	box-shadow: 0px 0px 1px rgb(37, 37, 37);
+	background-color: rgb(99, 199, 148);
+}
+#deleteelem:active{
+	translate: 2px 2px;
+	box-shadow: 0px 0px 1px rgb(37, 37, 37);
+	background-color: rgb(246, 114, 114);
+}
+
+#inzoom{
+	padding-top: 10px;
+	background-image: url(../images/inzoom.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+#outzoom{
+	padding-top: 10px;
+	background-image: url(../images/outzoom.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+#back{
+	padding-top: 10px;
+	background-image: url(../images/undo.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+#forward{
+	padding-top: 10px;
+	background-image: url(../images/redo.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+#showxml{
+	padding-top: 10px;
+	background-image: url(../images/show.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+#downloadxml{
+	padding-top: 10px;
+	background-image: url(../images/download.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+#deleteelem{
+	padding-top: 10px;
+	background-image: url(../images/delete.png);
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: 70%;
+}
+
+.polusumm{
+	color: white;
+	font-family: -apple-system, ".SFNSText-Regular", "Helvetica Neue", "Roboto", "Segoe UI";
+	font-size: 17px;
+	margin-left: 140px;
+	width: 150px;
+	height: 45px;
+	border: none;
+	background-color: rgb(99, 99, 99);
+	border-radius: 3px;
+	box-shadow: 2px 2px 1px rgb(37, 37, 37);
+}
+.polusumm:hover{
+	background-color: rgb(134, 133, 133);
+}
+.polusumm:active{
+	translate: 2px 2px;
+	box-shadow: 0px 0px 1px rgb(37, 37, 37);
+	background-color: rgb(99, 199, 148);
+}
+.checkboxx{
+	display: flex;
+	flex-direction: column;
+	margin-left: 340px;
+}
+#modegrid{
+	margin-left: 30px;
+}
+.elements_workplace{
+	display: flex;
+}
+.graphContainer{
+	width: 100vw;
+	height: 91vh;
+}
+.sapr_elements_list{
+	width: 10vw;
+	padding: 0;
+	margin: 0;
+	display: flex;
+    flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	font-family: -apple-system, ".SFNSText-Regular", "Helvetica Neue", "Roboto", "Segoe UI";
+	background-color: rgb(204, 203, 203);
+}
+
+
+.bth:not(:last-child){
+	margin-bottom: 10px;
+}
+.bth{
+	display: flex;
+	list-style: none;
+
+	
+	width: 80px;
+	height: 80px;
+	align-items: center;
+	justify-content: center;
+	background-color: rgb(99, 99, 99);
+	color: white;
+	border-radius: 3px;
+
+	box-shadow: 3px 3px 1px rgb(37, 37, 37);
+}
+.bth:hover{
+	background-color: rgb(134, 133, 133);
+}
+.bth:active{
+	translate: 3px 3px;
+	box-shadow: 0px 0px 1px rgb(37, 37, 37);
+	background-color: rgb(99, 199, 148);
+}
+
+.toggle {
+    cursor: pointer;
+    display: inline-block;
+	font-family: -apple-system, ".SFNSText-Regular", "Helvetica Neue", "Roboto", "Segoe UI";
+}
+
+.toggle-switch {
+    display: inline-block;
+    background: #ccc;
+    border-radius: 16px;
+    width: 40px;
+    height: 22px;
+    position: relative;
+    vertical-align: middle;
+    transition: background 0.25s;
+}
+.toggle-switch:before, .toggle-switch:after {
+    content: "";
+}
+.toggle-switch:before {
+    display: block;
+    background: linear-gradient(to bottom, #fff 0%, #eee 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+    width: 14px;
+    height: 14px;
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    transition: left 0.25s;
+}
+.toggle:hover .toggle-switch:before {
+    background: linear-gradient(to bottom, #fff 0%, #fff 100%);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.toggle-checkbox:checked + .toggle-switch {
+    background:  rgb(99, 99, 99);
+}
+.toggle-checkbox:checked + .toggle-switch:before {
+    left: 22px;
+}
+
+.toggle-checkbox {
+    position: absolute;
+    visibility: hidden;
+}
+
+.toggle-label {
+    margin-left: 5px;
+    position: relative;
+    top: 2px;
+}
+
+.toggle_grid{
+	margin-top: 3px;
+}
+#wires{
+	margin-bottom: 2px;
+}
+#grid{
+	margin-top: 2px;
+}

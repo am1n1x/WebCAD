@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport"
+		content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>WebCAD</title>
+	<!-- Sets the basepath for the library if not in same directory -->
+	<script type="text/javascript">
+		mxBasePath = '../src';
+	</script>
+	<!-- Loads and initializes the library -->
+	<script type="text/javascript" src="../src/js/mxClient.js"></script>
+	<script type="text/javascript">
+		// If connect preview is not moved away then getCellAt is used to detect the cell under
+		// the mouse if the mouse is over the preview shape in IE (no event transparency), ie.
+		// the built-in hit-detection of the HTML document will not be used in this case.
+		mxConnectionHandler.prototype.movePreviewAway = false;
+		mxConnectionHandler.prototype.waypointsEnabled = true;
+		mxGraph.prototype.resetEdgesOnConnect = false;
+		mxConstants.SHADOWCOLOR = '#C0C0C0';
+		var joinNodeSize = 7;
+		var strokeWidth = 2;
+
+		// Replaces the port image
+		mxConstraintHandler.prototype.pointImage = new mxImage('images/dot.gif', 10, 10);
+
+		// Enables guides
+		mxGraphHandler.prototype.guidesEnabled = true;
+
+		// Alt disables guides
+		mxGuide.prototype.isEnabledForEvent = function (evt) {
+			return !mxEvent.isAltDown(evt);
+		};
+
+		// Enables snapping waypoints to terminals
+		mxEdgeHandler.prototype.snapToTerminals = true;
+
+		function main(container) {
+			var graph = new mxGraph(container);
+			graph.view.scale = 1;
+			graph.setPanning(true);
+			graph.setConnectable(true);
+			graph.setConnectableEdges(true);
+			graph.setDisconnectOnMove(false);
+			graph.foldingEnabled = false;
+
+			//Maximum size
+			graph.maximumGraphBounds = new mxRectangle(0, 0, 800, 600)
+			graph.border = 50;
+
+			// Panning handler consumed right click so this must be
+			// disabled if right click should stop connection handler.
+			graph.panningHandler.isPopupTrigger = function () { return false; };
+
+			// Enables return key to stop editing (use shift-enter for newlines)
+			graph.setEnterStopsCellEditing(true);
+
+			// Adds rubberband selection
+			new mxRubberband(graph);
+
+			// Alternative solution for implementing connection points without child cells.
+			// This can be extended as shown in portrefs.html example to allow for per-port
+			// incoming/outgoing direction.
+			graph.getAllConnectionConstraints = function (terminal) {
+				var geo = (terminal != null) ? this.getCellGeometry(terminal.cell) : null;
+
+				if ((geo != null ? !geo.relative : false) &&
+					this.getModel().isVertex(terminal.cell) &&
+					this.getModel().getChildCount(terminal.cell) == 0) {
+					return [new mxConnectionConstraint(new mxPoint(0, 0.5), false),
+					new mxConnectionConstraint(new mxPoint(1, 0.5), false)];
+				}
+
+				return null;
+			};
+
+			// Makes sure non-relative cells can only be connected via constraints
+			graph.connectionHandler.isConnectableCell = function (cell) {
+				if (this.graph.getModel().isEdge(cell)) {
+					return true;
+				}
+				else {
+					var geo = (cell != null) ? this.graph.getCellGeometry(cell) : null;
+
+					return (geo != null) ? geo.relative : false;
+				}
+			};
+			mxEdgeHandler.prototype.isConnectableCell = function (cell) {
+				return graph.connectionHandler.isConnectableCell(cell);
+			};
+
+			// Adds a special tooltip for edges
+			graph.setTooltips(true);
+
+			var getTooltipForCell = graph.getTooltipForCell;
+			graph.getTooltipForCell = function (cell) {
+				var tip = '';
+
+				if (cell != null) {
+					var src = this.getModel().getTerminal(cell, true);
+
+					if (src != null) {
+						tip += this.getTooltipForCell(src) + ' ';
+					}
+
+					var parent = this.getModel().getParent(cell);
+
+					if (this.getModel().isVertex(parent)) {
+						tip += this.getTooltipForCell(parent) + '.';
+					}
+
+					tip += getTooltipForCell.apply(this, arguments);
+
+					var trg = this.getModel().getTerminal(cell, false);
+
+					if (trg != null) {
+						tip += ' ' + this.getTooltipForCell(trg);
+					}
+				}
+
+				return tip;
+			};
+
+			// Switch for black background and bright styles
+			var invert = false;
+
+			if (invert) {
+				container.style.backgroundColor = 'black';
+
+				// White in-place editor text color
+				mxCellEditorStartEditing = mxCellEditor.prototype.startEditing;
+				mxCellEditor.prototype.startEditing = function (cell, trigger) {
+					mxCellEditorStartEditing.apply(this, arguments);
+
+					if (this.textarea != null) {
+						this.textarea.style.color = '#FFFFFF';
+					}
+				};
+
+				mxGraphHandler.prototype.previewColor = 'white';
+			}
+
+			var labelBackground = (invert) ? '#000000' : '#FFFFFF';
+			var fontColor = (invert) ? '#FFFFFF' : '#000000';
+			var strokeColor = (invert) ? '#C0C0C0' : '#000000';
+			var fillColor = (invert) ? 'none' : '#FFFFFF';
+
+			var style = graph.getStylesheet().getDefaultEdgeStyle();
+			delete style['endArrow'];
+			style['strokeColor'] = strokeColor;
+			style['labelBackgroundColor'] = labelBackground;
+			style['edgeStyle'] = 'wireEdgeStyle';
+			style['fontColor'] = fontColor;
+			style['fontSize'] = '9';
+			style['movable'] = '0';
+			style['strokeWidth'] = strokeWidth;
+			//style['rounded'] = '1';
+
+			// Sets join node size
+			style['startSize'] = joinNodeSize;
+			style['endSize'] = joinNodeSize;
+
+			style = graph.getStylesheet().getDefaultVertexStyle();
+			style['gradientDirection'] = 'south';
+			//style['gradientColor'] = '#909090';
+			style['strokeColor'] = strokeColor;
+			//style['fillColor'] = '#e0e0e0';
+			style['fillColor'] = 'none';
+			style['fontColor'] = fontColor;
+			style['fontStyle'] = '1';
+			style['fontSize'] = '12';
+			style['resizable'] = '0';
+			style['rounded'] = '1';
+			style['strokeWidth'] = strokeWidth;
+
+
+			const buttons = document.querySelectorAll('.bth');
+			const update = (event) => {
+				var parent = graph.getDefaultParent();
+				var doc = mxUtils.createXmlDocument();
+
+				graph.getModel().beginUpdate();
+				try {
+					if ((event.target.textContent) == 'not x') {
+						//прямоугольник
+						var v1 = graph.insertVertex(parent, null, '', 80, 40, 40, 80,
+							'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+						v1.setConnectable(false);
+
+
+						//выходы прямоугольника
+						var v11 = graph.insertVertex(v1, null, 'X', 0, 0, 10, 16,
+							'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+							'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v11.geometry.relative = true;
+						v11.geometry.offset = new mxPoint(-v11.geometry.width, 12);
+						var v12 = v11.clone();
+						v12.value = 'Y';
+						v12.geometry.offset = new mxPoint(-v11.geometry.width, 52);
+						v1.insert(v12);
+						var v15 = v11.clone();
+						v15.value = '';
+						v15.geometry.x = 1;
+						v15.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+						v15.geometry.offset = new mxPoint(5, 32);
+						v1.insert(v15);
+
+
+						var v16 = graph.insertVertex(v1, null, '○', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=30;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v16.geometry.x = 1;
+						v16.geometry.offset = new mxPoint(49, 34);
+						v1.insert(v16);
+					}
+					if ((event.target.textContent) == 'x * y') {
+						//прямоугольник
+						var v1 = graph.insertVertex(parent, null, '', 180, 40, 40, 80,
+							'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+						v1.setConnectable(false);
+
+						//выходы прямоугольника
+						var v11 = graph.insertVertex(v1, null, 'X', 0, 0, 10, 16,
+							'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+							'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v11.geometry.relative = true;
+						v11.geometry.offset = new mxPoint(-v11.geometry.width, 12);
+						var v12 = v11.clone();
+						v12.value = 'Y';
+						v12.geometry.offset = new mxPoint(-v11.geometry.width, 52);
+						v1.insert(v12);
+						var v15 = v11.clone();
+						v15.value = '';
+						v15.geometry.x = 1;
+						v15.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+						v15.geometry.offset = new mxPoint(0, 32);
+						v1.insert(v15);
+
+
+						var v16 = graph.insertVertex(v1, null, '&', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=20;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v16.geometry.x = 1;
+						v16.geometry.offset = new mxPoint(28.5, 37);
+						v1.insert(v16);
+					}
+					if ((event.target.textContent) == 'x + y') {
+						//прямоугольник
+						var v1 = graph.insertVertex(parent, null, '', 250, 40, 40, 80,
+							'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+						v1.setConnectable(false);
+
+						//выходы прямоугольника
+						var v11 = graph.insertVertex(v1, null, 'X', 0, 0, 10, 16,
+							'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+							'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v11.geometry.relative = true;
+						v11.geometry.offset = new mxPoint(-v11.geometry.width, 12);
+						var v12 = v11.clone();
+						v12.value = 'Y';
+						v12.geometry.offset = new mxPoint(-v11.geometry.width, 52);
+						v1.insert(v12);
+						var v15 = v11.clone();
+						v15.value = '';
+						v15.geometry.x = 1;
+						v15.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+						v15.geometry.offset = new mxPoint(0, 32);
+						v1.insert(v15);
+
+						var v16 = graph.insertVertex(v1, null, '|', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=20;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v16.geometry.x = 1;
+						v16.geometry.offset = new mxPoint(24, 37);
+						v1.insert(v16);
+					}
+					if ((event.target.textContent) == 'x == y') {
+						//прямоугольник
+						var v1 = graph.insertVertex(parent, null, '', 180, 140, 40, 80,
+							'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+						v1.setConnectable(false);
+
+						//выходы прямоугольника
+						var v11 = graph.insertVertex(v1, null, 'X', 0, 0, 10, 16,
+							'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+							'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v11.geometry.relative = true;
+						v11.geometry.offset = new mxPoint(-v11.geometry.width, 12);
+						var v12 = v11.clone();
+						v12.value = 'Y';
+						v12.geometry.offset = new mxPoint(-v11.geometry.width, 52);
+						v1.insert(v12);
+						var v15 = v11.clone();
+						v15.value = '';
+						v15.geometry.x = 1;
+						v15.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+						v15.geometry.offset = new mxPoint(0, 32);
+						v1.insert(v15);
+
+						var v16 = graph.insertVertex(v1, null, '==', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=15;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v16.geometry.x = 1;
+						v16.geometry.offset = new mxPoint(30, 38);
+						v1.insert(v16);
+					}
+					if ((event.target.textContent) == 'x => y') {
+						//прямоугольник
+						var v1 = graph.insertVertex(parent, null, '', 80, 140, 40, 80,
+							'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+						v1.setConnectable(false);
+
+						//выходы прямоугольника
+						var v11 = graph.insertVertex(v1, null, '', 0, 0, 14, 16,
+							'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+							'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v11.geometry.relative = true;
+						v11.geometry.offset = new mxPoint(-v11.geometry.width, 12);
+						var v12 = v11.clone();
+						v12.value = '';
+						v12.geometry.offset = new mxPoint(-v11.geometry.width, 52);
+						v1.insert(v12);
+						var v15 = v11.clone();
+						v15.value = '';
+						v15.geometry.x = 1;
+						v15.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+						v15.geometry.offset = new mxPoint(0, 32);
+						v1.insert(v15);
+
+						var v16 = graph.insertVertex(v1, null, '○', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=25;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v16.geometry.x = 1;
+						v16.geometry.offset = new mxPoint(8, 15);
+						v1.insert(v16);
+						var v17 = graph.insertVertex(v1, null, 'X', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v17.geometry.x = 1;
+						v17.geometry.offset = new mxPoint(14, 20);
+						v1.insert(v17);
+						var v18 = graph.insertVertex(v1, null, 'Y', 0, 0, 0, 0,
+							'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+							'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+						v18.geometry.x = 1;
+						v18.geometry.offset = new mxPoint(14, 59);
+						v1.insert(v18);
+					}
+				}
+				finally {
+					graph.getModel().endUpdate();
+				}
+			}
+			buttons.forEach((button) => {
+				button.addEventListener('click', update);
+			});
+
+			const showxml = document.getElementById('showxml');
+			showxml.addEventListener('click', function () {
+				var encoder = new mxCodec();
+				var node = encoder.encode(graph.getModel());
+				mxUtils.popup(mxUtils.getPrettyXml(node), true);
+			});
+
+			const downloadxml = document.getElementById('downloadxml');
+			downloadxml.addEventListener('click', function () {
+				var encoder = new mxCodec();
+				var node = encoder.encode(graph.getModel());
+
+				const xmlString = (mxUtils.getPrettyXml(node));
+				const data = xmlString;
+				const filename = 'data.xml';
+				const blob = new Blob([data], { type: 'text/xml' });
+				const link = document.createElement('a');
+				link.href = window.URL.createObjectURL(blob);
+				link.download = filename;
+				link.click();
+			});
+			var parent = graph.getDefaultParent();
+			var doc = mxUtils.createXmlDocument();
+			const polusumm = document.getElementById('polusumm');
+			polusumm.addEventListener('click', function () {
+
+				var parent = graph.getDefaultParent();
+				var doc = mxUtils.createXmlDocument();
+
+				graph.getModel().beginUpdate();
+				try {
+					//____1
+					var v1 = graph.insertVertex(parent, null, '', 170, 110, 40, 80,
+						'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+					v1.setConnectable(false);
+					var v11 = graph.insertVertex(v1, null, 'X', 0, 0, 10, 16,
+						'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+						'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v11.geometry.relative = true;
+					v11.geometry.offset = new mxPoint(-v11.geometry.width, 12);
+					var v12 = v11.clone();
+					v12.value = 'Y';
+					v12.geometry.offset = new mxPoint(-v11.geometry.width, 52);
+					v1.insert(v12);
+					var v15 = v11.clone();
+					v15.value = '';
+					v15.geometry.x = 1;
+					v15.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+						'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+					v15.geometry.offset = new mxPoint(5, 32);
+					v1.insert(v15);
+
+
+					var v16 = graph.insertVertex(v1, null, '○', 49, 34, 0, 0,
+						'shape=line;align=right;verticalAlign=middle;fontSize=30;routingCenterX=0.5;' +
+						'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v16.geometry.x = 1;
+					v16.geometry.offset = new mxPoint(58, 0);
+					v1.insert(v16);
+
+
+					//____2
+					var v2 = graph.insertVertex(parent, null, '', 170, 200, 40, 80,
+						'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+					v2.setConnectable(false);
+					var v21 = graph.insertVertex(v2, null, 'X', 0, 0, 10, 16,
+						'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+						'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v21.geometry.relative = true;
+					v21.geometry.offset = new mxPoint(-v21.geometry.width, 12);
+					var v22 = v21.clone();
+					v22.value = 'Y';
+					v22.geometry.offset = new mxPoint(-v21.geometry.width, 52);
+					v2.insert(v22);
+					var v25 = v21.clone();
+					v25.value = '';
+					v25.geometry.x = 1;
+					v25.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+						'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+					v25.geometry.offset = new mxPoint(5, 32);
+					v2.insert(v25);
+
+
+					var v26 = graph.insertVertex(v2, null, '○', 49, 34, 0, 0,
+						'shape=line;align=right;verticalAlign=middle;fontSize=30;routingCenterX=0.5;' +
+						'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v26.geometry.x = 1;
+					v26.geometry.offset = new mxPoint(58, 0);
+					v2.insert(v26);
+
+
+					//____3
+					var v3 = graph.insertVertex(parent, null, '', 310, 70, 40, 80,
+						'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+					v3.setConnectable(false);
+					var v31 = graph.insertVertex(v3, null, 'X', 0, 0, 10, 16,
+						'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+						'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v31.geometry.relative = true;
+					v31.geometry.offset = new mxPoint(-v31.geometry.width, 12);
+					var v32 = v31.clone();
+					v32.value = 'Y';
+					v32.geometry.offset = new mxPoint(-v31.geometry.width, 52);
+					v3.insert(v32);
+					var v35 = v31.clone();
+					v35.value = '';
+					v35.geometry.x = 1;
+					v35.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+						'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+					v35.geometry.offset = new mxPoint(0, 32);
+					v3.insert(v35);
+
+					var v36 = graph.insertVertex(v3, null, '&ㅤ', 49, 38, 0, 0,
+						'shape=line;align=right;verticalAlign=middle;fontSize=20;routingCenterX=0.5;' +
+						'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v36.geometry.x = 1;
+					v36.geometry.offset = new mxPoint(51, 0);
+					v3.insert(v36);
+
+
+					//____4
+					var v4 = graph.insertVertex(parent, null, '', 310, 320, 40, 80,
+						'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+					v4.setConnectable(false);
+
+					var v41 = graph.insertVertex(v4, null, 'X', 0, 0, 10, 16,
+						'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+						'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v41.geometry.relative = true;
+					v41.geometry.offset = new mxPoint(-v41.geometry.width, 12);
+					var v42 = v41.clone();
+					v42.value = 'Y';
+					v42.geometry.offset = new mxPoint(-v41.geometry.width, 52);
+					v4.insert(v42);
+					var v45 = v41.clone();
+					v45.value = '';
+					v45.geometry.x = 1;
+					v45.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+						'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+					v45.geometry.offset = new mxPoint(0, 32);
+					v4.insert(v45);
+
+
+					var v46 = graph.insertVertex(v4, null, '&ㅤ', 49, 38, 0, 0,
+						'shape=line;align=right;verticalAlign=middle;fontSize=20;routingCenterX=0.5;' +
+						'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v46.geometry.x = 1;
+					v46.geometry.offset = new mxPoint(51, 0);
+					v4.insert(v46);
+
+
+					//____5
+					var v5 = graph.insertVertex(parent, null, '', 310, 220, 40, 80,
+						'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+					v5.setConnectable(false);
+
+					var v51 = graph.insertVertex(v5, null, 'X', 0, 0, 10, 16,
+						'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+						'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v51.geometry.relative = true;
+					v51.geometry.offset = new mxPoint(-v51.geometry.width, 12);
+					var v52 = v51.clone();
+					v52.value = 'Y';
+					v52.geometry.offset = new mxPoint(-v51.geometry.width, 52);
+					v5.insert(v52);
+					var v55 = v51.clone();
+					v55.value = '';
+					v55.geometry.x = 1;
+					v55.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+						'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+					v55.geometry.offset = new mxPoint(0, 32);
+					v5.insert(v55);
+
+
+					var v56 = graph.insertVertex(v5, null, '&ㅤ', 49, 38, 0, 0,
+						'shape=line;align=right;verticalAlign=middle;fontSize=20;routingCenterX=0.5;' +
+						'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v56.geometry.x = 1;
+					v56.geometry.offset = new mxPoint(51, 0);
+					v5.insert(v56);
+
+
+					//____6
+					var v6 = graph.insertVertex(parent, null, '', 430, 140, 40, 80,
+						'verticalLabelPosition=top;verticalAlign=bottom;shadow=1;fillColor=' + fillColor);
+					v6.setConnectable(false);
+
+					var v61 = graph.insertVertex(v6, null, 'X', 0, 0, 10, 16,
+						'shape=line;align=left;verticalAlign=middle;fontSize=10;routingCenterX=-0.5;' +
+						'spacingLeft=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v61.geometry.relative = true;
+					v61.geometry.offset = new mxPoint(-v61.geometry.width, 12);
+					var v62 = v61.clone();
+					v62.value = 'Y';
+					v62.geometry.offset = new mxPoint(-v61.geometry.width, 52);
+					v6.insert(v62);
+					var v65 = v61.clone();
+					v65.value = '';
+					v65.geometry.x = 1;
+					v65.style = 'shape=line;align=right;verticalAlign=middle;fontSize=10;routingCenterX=0.5;' +
+						'spacingRight=12;fontColor=' + fontColor + ';strokeColor=' + strokeColor;
+					v65.geometry.offset = new mxPoint(0, 32);
+					v6.insert(v65);
+
+					var v66 = graph.insertVertex(v6, null, '|ㅤ', 49, 36, 0, 0,
+						'shape=line;align=right;verticalAlign=middle;fontSize=20;routingCenterX=0.5;' +
+						'spacingLeft=6;fontColor=' + fontColor + ';strokeColor=' + strokeColor);
+					v66.geometry.x = 1;
+					v66.geometry.offset = new mxPoint(45, 0);
+					v6.insert(v66);
+
+
+					//__________________________________________________________________________
+
+					var e0 = graph.insertEdge(parent, null, '');
+					e0.geometry.setTerminalPoint(new mxPoint(30, 90), true);
+					e0.geometry.setTerminalPoint(new mxPoint(30, 90), false);
+					var e01 = graph.insertEdge(parent, null, '', v3.getChildAt(0), e0);
+					e01.geometry.points = [new mxPoint(30, -50)];
+
+					var e1 = graph.insertEdge(parent, null, '');
+					e1.geometry.setTerminalPoint(new mxPoint(30, 380), true);
+					e1.geometry.setTerminalPoint(new mxPoint(30, 380), false);
+					var e11 = graph.insertEdge(parent, null, '', v4.getChildAt(1), e1);
+					e11.geometry.points = [new mxPoint(30, -50)];
+
+
+					var e2 = graph.insertEdge(parent, null, '');
+					e2.geometry.setTerminalPoint(new mxPoint(110, 90), true);
+					e2.geometry.setTerminalPoint(new mxPoint(110, 90), false);
+					var e21 = graph.insertEdge(parent, null, '', v4.getChildAt(0), e2);
+
+
+					var e31 = graph.insertEdge(parent, null, '', v1.getChildAt(0), v1.getChildAt(1));
+					var e32 = graph.insertEdge(parent, null, '', v2.getChildAt(0), v2.getChildAt(1));
+
+					var e4 = graph.insertEdge(parent, null, '');
+					e4.geometry.setTerminalPoint(new mxPoint(110, 240), true);
+					e4.geometry.setTerminalPoint(new mxPoint(110, 240), false);
+					var e41 = graph.insertEdge(parent, null, '', e32, e4);
+
+					var e5 = graph.insertEdge(parent, null, '');
+					e5.geometry.setTerminalPoint(new mxPoint(130, 380), true);
+					e5.geometry.setTerminalPoint(new mxPoint(130, 380), false);
+					var e51 = graph.insertEdge(parent, null, '', e31, e5);
+					e51.geometry.points = [new mxPoint(130, 150)];
+
+					var e6 = graph.insertEdge(parent, null, '');
+					e6.geometry.setTerminalPoint(new mxPoint(130, 300), true);
+					e6.geometry.setTerminalPoint(new mxPoint(130, 300), false);
+					var e61 = graph.insertEdge(parent, null, '', v5.getChildAt(1), e6);
+					e61.geometry.points = [new mxPoint(300, 280), new mxPoint(300, 300)];
+
+
+					var e71 = graph.insertEdge(parent, null, '', v5.getChildAt(0), v2.getChildAt(2));
+
+					var e81 = graph.insertEdge(parent, null, '', v1.getChildAt(2), v3.getChildAt(1));
+
+					var e91 = graph.insertEdge(parent, null, '', v3.getChildAt(2), v6.getChildAt(0));
+
+					var e101 = graph.insertEdge(parent, null, '', v5.getChildAt(2), v6.getChildAt(1));
+
+					var e11 = graph.insertEdge(parent, null, '');
+					e11.geometry.setTerminalPoint(new mxPoint(550, 360), true);
+					e11.geometry.setTerminalPoint(new mxPoint(550, 360), false);
+					var e111 = graph.insertEdge(parent, null, '', v4.getChildAt(2), e11);
+
+					var e12 = graph.insertEdge(parent, null, '');
+					e12.geometry.setTerminalPoint(new mxPoint(550, 180), true);
+					e12.geometry.setTerminalPoint(new mxPoint(550, 180), false);
+					var e121 = graph.insertEdge(parent, null, '', v6.getChildAt(2), e12);
+
+				}
+				finally {
+					graph.getModel().endUpdate();
+				}
+			});
+
+
+
+			const inzoom = document.getElementById('inzoom');
+			inzoom.addEventListener('click', function () {
+				graph.zoomIn();
+			});
+
+			const outzoom = document.getElementById('outzoom');
+			outzoom.addEventListener('click', function () {
+				graph.zoomOut();
+			});
+
+			// Undo/redo
+			var undoManager = new mxUndoManager();
+			var listener = function (sender, evt) {
+				undoManager.undoableEditHappened(evt.getProperty('edit'));
+			};
+			graph.getModel().addListener(mxEvent.UNDO, listener);
+			graph.getView().addListener(mxEvent.UNDO, listener);
+
+			const back = document.getElementById('back');
+			back.addEventListener('click', function () {
+				undoManager.undo();
+			});
+
+			const forward = document.getElementById('forward');
+			forward.addEventListener('click', function () {
+				undoManager.redo();
+			});
+
+			// Shows XML for debugging the actual model
+			const deleteelem = document.getElementById('deleteelem');
+			deleteelem.addEventListener('click', function () {
+				graph.removeCells();
+			});
+
+			// Wire-mode
+			var checkbox = document.getElementById('modewire');
+
+			// Starts connections on the background in wire-mode
+			var connectionHandlerIsStartEvent = graph.connectionHandler.isStartEvent;
+			graph.connectionHandler.isStartEvent = function (me) {
+				return checkbox.checked || connectionHandlerIsStartEvent.apply(this, arguments);
+			};
+
+			// Avoids any connections for gestures within tolerance except when in wire-mode
+			// or when over a port
+			var connectionHandlerMouseUp = graph.connectionHandler.mouseUp;
+			graph.connectionHandler.mouseUp = function (sender, me) {
+				if (this.first != null && this.previous != null) {
+					var point = mxUtils.convertPoint(this.graph.container, me.getX(), me.getY());
+					var dx = Math.abs(point.x - this.first.x);
+					var dy = Math.abs(point.y - this.first.y);
+
+					if (dx < this.graph.tolerance && dy < this.graph.tolerance) {
+						// Selects edges in non-wire mode for single clicks, but starts
+						// connecting for non-edges regardless of wire-mode
+						if (!checkbox.checked && this.graph.getModel().isEdge(this.previous.cell)) {
+							this.reset();
+						}
+
+						return;
+					}
+				}
+
+				connectionHandlerMouseUp.apply(this, arguments);
+			};
+
+
+
+			// Grid
+			var checkbox2 = document.getElementById('modegrid');
+
+			mxEvent.addListener(checkbox2, 'click', function (evt) {
+				if (checkbox2.checked) {
+					container.style.background = 'url(\'images/wires-grid.gif\')';
+				}
+				else {
+					container.style.background = '';
+				}
+
+				container.style.backgroundColor = (invert) ? 'black' : 'white';
+			});
+
+			mxEvent.disableContextMenu(container);
+		};
+	</script>
+	<!--
+		Updates connection points before the routing is called.
+-->
+	<script type="text/javascript">
+		// Computes the position of edge to edge connection points.
+		mxGraphView.prototype.updateFixedTerminalPoint = function (edge, terminal, source, constraint) {
+			var pt = null;
+
+			if (constraint != null) {
+				pt = this.graph.getConnectionPoint(terminal, constraint);
+			}
+
+			if (source) {
+				edge.sourceSegment = null;
+			}
+			else {
+				edge.targetSegment = null;
+			}
+
+			if (pt == null) {
+				var s = this.scale;
+				var tr = this.translate;
+				var orig = edge.origin;
+				var geo = this.graph.getCellGeometry(edge.cell);
+				pt = geo.getTerminalPoint(source);
+
+				// Computes edge-to-edge connection point
+				if (pt != null) {
+					pt = new mxPoint(s * (tr.x + pt.x + orig.x),
+						s * (tr.y + pt.y + orig.y));
+
+					// Finds nearest segment on edge and computes intersection
+					if (terminal != null && terminal.absolutePoints != null) {
+						var seg = mxUtils.findNearestSegment(terminal, pt.x, pt.y);
+
+						// Finds orientation of the segment
+						var p0 = terminal.absolutePoints[seg];
+						var pe = terminal.absolutePoints[seg + 1];
+						var horizontal = (p0.x - pe.x == 0);
+
+						// Stores the segment in the edge state
+						var key = (source) ? 'sourceConstraint' : 'targetConstraint';
+						var value = (horizontal) ? 'horizontal' : 'vertical';
+						edge.style[key] = value;
+
+						// Keeps the coordinate within the segment bounds
+						if (horizontal) {
+							pt.x = p0.x;
+							pt.y = Math.min(pt.y, Math.max(p0.y, pe.y));
+							pt.y = Math.max(pt.y, Math.min(p0.y, pe.y));
+						}
+						else {
+							pt.y = p0.y;
+							pt.x = Math.min(pt.x, Math.max(p0.x, pe.x));
+							pt.x = Math.max(pt.x, Math.min(p0.x, pe.x));
+						}
+					}
+				}
+				// Computes constraint connection points on vertices and ports
+				else if (terminal != null && terminal.cell.geometry.relative) {
+					pt = new mxPoint(this.getRoutingCenterX(terminal),
+						this.getRoutingCenterY(terminal));
+				}
+
+				// Snaps point to grid
+				/*if (pt != null)
+				{
+					var tr = this.graph.view.translate;
+					var s = this.graph.view.scale;
+
+					pt.x = (this.graph.snap(pt.x / s - tr.x) + tr.x) * s;
+					pt.y = (this.graph.snap(pt.y / s - tr.y) + tr.y) * s;
+				}*/
+			}
+
+			edge.setAbsoluteTerminalPoint(pt, source);
+		};
+	</script>
+	<!--
+	Overrides methods to preview and create new edges.
+-->
+	<script type="text/javascript">
+		// Sets source terminal point for edge-to-edge connections.
+		mxConnectionHandler.prototype.createEdgeState = function (me) {
+			var edge = this.graph.createEdge();
+
+			if (this.sourceConstraint != null && this.previous != null) {
+				edge.style = mxConstants.STYLE_EXIT_X + '=' + this.sourceConstraint.point.x + ';' +
+					mxConstants.STYLE_EXIT_Y + '=' + this.sourceConstraint.point.y + ';';
+			}
+			else if (this.graph.model.isEdge(me.getCell())) {
+				var scale = this.graph.view.scale;
+				var tr = this.graph.view.translate;
+				var pt = new mxPoint(this.graph.snap(me.getGraphX() / scale) - tr.x,
+					this.graph.snap(me.getGraphY() / scale) - tr.y);
+				edge.geometry.setTerminalPoint(pt, true);
+			}
+
+			return this.graph.view.createState(edge);
+		};
+
+		// Uses right mouse button to create edges on background (see also: lines 67 ff)
+		mxConnectionHandler.prototype.isStopEvent = function (me) {
+			return me.getState() != null || mxEvent.isRightMouseButton(me.getEvent());
+		};
+
+		// Updates target terminal point for edge-to-edge connections.
+		mxConnectionHandlerUpdateCurrentState = mxConnectionHandler.prototype.updateCurrentState;
+		mxConnectionHandler.prototype.updateCurrentState = function (me) {
+			mxConnectionHandlerUpdateCurrentState.apply(this, arguments);
+
+			if (this.edgeState != null) {
+				this.edgeState.cell.geometry.setTerminalPoint(null, false);
+
+				if (this.shape != null && this.currentState != null &&
+					this.currentState.view.graph.model.isEdge(this.currentState.cell)) {
+					var scale = this.graph.view.scale;
+					var tr = this.graph.view.translate;
+					var pt = new mxPoint(this.graph.snap(me.getGraphX() / scale) - tr.x,
+						this.graph.snap(me.getGraphY() / scale) - tr.y);
+					this.edgeState.cell.geometry.setTerminalPoint(pt, false);
+				}
+			}
+		};
+
+		// Updates the terminal and control points in the cloned preview.
+		mxEdgeSegmentHandler.prototype.clonePreviewState = function (point, terminal) {
+			var clone = mxEdgeHandler.prototype.clonePreviewState.apply(this, arguments);
+			clone.cell = clone.cell.clone();
+
+			if (this.isSource || this.isTarget) {
+				clone.cell.geometry = clone.cell.geometry.clone();
+
+				// Sets the terminal point of an edge if we're moving one of the endpoints
+				if (this.graph.getModel().isEdge(clone.cell)) {
+					// TODO: Only set this if the target or source terminal is an edge
+					clone.cell.geometry.setTerminalPoint(point, this.isSource);
+				}
+				else {
+					clone.cell.geometry.setTerminalPoint(null, this.isSource);
+				}
+			}
+
+			return clone;
+		};
+
+		var mxEdgeHandlerConnect = mxEdgeHandler.prototype.connect;
+		mxEdgeHandler.prototype.connect = function (edge, terminal, isSource, isClone, me) {
+			var result = null;
+			var model = this.graph.getModel();
+			var parent = model.getParent(edge);
+
+			model.beginUpdate();
+			try {
+				result = mxEdgeHandlerConnect.apply(this, arguments);
+				var geo = model.getGeometry(result);
+
+				if (geo != null) {
+					geo = geo.clone();
+					var pt = null;
+
+					if (model.isEdge(terminal)) {
+						pt = this.abspoints[(this.isSource) ? 0 : this.abspoints.length - 1];
+						pt.x = pt.x / this.graph.view.scale - this.graph.view.translate.x;
+						pt.y = pt.y / this.graph.view.scale - this.graph.view.translate.y;
+
+						var pstate = this.graph.getView().getState(
+							this.graph.getModel().getParent(edge));
+
+						if (pstate != null) {
+							pt.x -= pstate.origin.x;
+							pt.y -= pstate.origin.y;
+						}
+
+						pt.x -= this.graph.panDx / this.graph.view.scale;
+						pt.y -= this.graph.panDy / this.graph.view.scale;
+					}
+
+					geo.setTerminalPoint(pt, isSource);
+					model.setGeometry(edge, geo);
+				}
+			}
+			finally {
+				model.endUpdate();
+			}
+
+			return result;
+		};
+	</script>
+	<!--
+	Adds in-place highlighting for complete cell area (no hotspot).
+-->
+	<script type="text/javascript">
+		mxConnectionHandlerCreateMarker = mxConnectionHandler.prototype.createMarker;
+		mxConnectionHandler.prototype.createMarker = function () {
+			var marker = mxConnectionHandlerCreateMarker.apply(this, arguments);
+
+			// Uses complete area of cell for new connections (no hotspot)
+			marker.intersects = function (state, evt) {
+				return true;
+			};
+
+			// Adds in-place highlighting
+			mxCellHighlightHighlight = mxCellHighlight.prototype.highlight;
+			marker.highlight.highlight = function (state) {
+				if (this.state != state) {
+					if (this.state != null) {
+						this.state.style = this.lastStyle;
+
+						// Workaround for shape using current stroke width if no strokewidth defined
+						this.state.style['strokeWidth'] = this.state.style['strokeWidth'] || '1';
+						this.state.style['strokeColor'] = this.state.style['strokeColor'] || 'none';
+
+						if (this.state.shape != null) {
+							this.state.view.graph.cellRenderer.configureShape(this.state);
+							this.state.shape.redraw();
+						}
+					}
+
+					if (state != null) {
+						this.lastStyle = state.style;
+						state.style = mxUtils.clone(state.style);
+						state.style['strokeColor'] = '#00ff00';
+						state.style['strokeWidth'] = '3';
+
+						if (state.shape != null) {
+							state.view.graph.cellRenderer.configureShape(state);
+							state.shape.redraw();
+						}
+					}
+
+					this.state = state;
+				}
+			};
+
+			return marker;
+		};
+
+		mxEdgeHandlerCreateMarker = mxEdgeHandler.prototype.createMarker;
+		mxEdgeHandler.prototype.createMarker = function () {
+			var marker = mxEdgeHandlerCreateMarker.apply(this, arguments);
+
+			// Adds in-place highlighting when reconnecting existing edges
+			marker.highlight.highlight = this.graph.connectionHandler.marker.highlight.highlight;
+
+			return marker;
+		}
+	</script>
+	<!--
+	Adds oval markers for edge-to-edge connections.
+-->
+	<script type="text/javascript">
+		mxGraphGetCellStyle = mxGraph.prototype.getCellStyle;
+		mxGraph.prototype.getCellStyle = function (cell) {
+			var style = mxGraphGetCellStyle.apply(this, arguments);
+
+			if (style != null && this.model.isEdge(cell)) {
+				style = mxUtils.clone(style);
+
+				if (this.model.isEdge(this.model.getTerminal(cell, true))) {
+					style['startArrow'] = 'oval';
+				}
+
+				if (this.model.isEdge(this.model.getTerminal(cell, false))) {
+					style['endArrow'] = 'oval';
+				}
+			}
+
+			return style;
+		};
+	</script>
+	<!--
+	Imlements a custom resistor shape. Direction currently ignored here.
+-->
+	<script type="text/javascript">
+		function ResistorShape() { };
+		ResistorShape.prototype = new mxCylinder();
+		ResistorShape.prototype.constructor = ResistorShape;
+
+		ResistorShape.prototype.redrawPath = function (path, x, y, w, h, isForeground) {
+			var dx = w / 16;
+
+			if (isForeground) {
+				path.moveTo(0, h / 2);
+				path.lineTo(2 * dx, h / 2);
+				path.lineTo(3 * dx, 0);
+				path.lineTo(5 * dx, h);
+				path.lineTo(7 * dx, 0);
+				path.lineTo(9 * dx, h);
+				path.lineTo(11 * dx, 0);
+				path.lineTo(13 * dx, h);
+				path.lineTo(14 * dx, h / 2);
+				path.lineTo(16 * dx, h / 2);
+
+				path.end();
+			}
+		};
+
+		mxCellRenderer.registerShape('resistor', ResistorShape);
+	</script>
+	<!--
+	Imlements a custom resistor shape. Direction currently ignored here.
+-->
+	<script type="text/javascript">
+		mxEdgeStyle.WireConnector = function (state, source, target, hints, result) {
+			// Creates array of all way- and terminalpoints
+			var pts = state.absolutePoints;
+			var horizontal = true;
+			var hint = null;
+
+			// Gets the initial connection from the source terminal or edge
+			if (source != null && state.view.graph.model.isEdge(source.cell)) {
+				horizontal = state.style['sourceConstraint'] == 'horizontal';
+			}
+			else if (source != null) {
+				horizontal = source.style['portConstraint'] != 'vertical';
+
+				// Checks the direction of the shape and rotates
+				var direction = source.style[mxConstants.STYLE_DIRECTION];
+
+				if (direction == 'north' || direction == 'south') {
+					horizontal = !horizontal;
+				}
+			}
+
+			// Adds the first point
+			// TODO: Should move along connected segment
+			var pt = pts[0];
+
+			if (pt == null && source != null) {
+				pt = new mxPoint(state.view.getRoutingCenterX(source), state.view.getRoutingCenterY(source));
+			}
+			else if (pt != null) {
+				pt = pt.clone();
+			}
+
+			var first = pt;
+
+			// Adds the waypoints
+			if (hints != null && hints.length > 0) {
+				// FIXME: First segment not movable
+				/*hint = state.view.transformControlPoint(state, hints[0]);
+				mxLog.show();
+				mxLog.debug(hints.length,'hints0.y='+hint.y, pt.y)
+
+				if (horizontal && Math.floor(hint.y) != Math.floor(pt.y))
+				{
+					mxLog.show();
+					mxLog.debug('add waypoint');
+
+					pt = new mxPoint(pt.x, hint.y);
+					result.push(pt);
+					pt = pt.clone();
+					//horizontal = !horizontal;
+				}*/
+
+				for (var i = 0; i < hints.length; i++) {
+					horizontal = !horizontal;
+					hint = state.view.transformControlPoint(state, hints[i]);
+
+					if (horizontal) {
+						if (pt.y != hint.y) {
+							pt.y = hint.y;
+							result.push(pt.clone());
+						}
+					}
+					else if (pt.x != hint.x) {
+						pt.x = hint.x;
+						result.push(pt.clone());
+					}
+				}
+			}
+			else {
+				hint = pt;
+			}
+
+			// Adds the last point
+			pt = pts[pts.length - 1];
+
+			// TODO: Should move along connected segment
+			if (pt == null && target != null) {
+				pt = new mxPoint(state.view.getRoutingCenterX(target), state.view.getRoutingCenterY(target));
+			}
+
+			if (horizontal) {
+				if (pt.y != hint.y && first.x != pt.x) {
+					result.push(new mxPoint(pt.x, hint.y));
+				}
+			}
+			else if (pt.x != hint.x && first.y != pt.y) {
+				result.push(new mxPoint(hint.x, pt.y));
+			}
+		};
+
+		mxStyleRegistry.putValue('wireEdgeStyle', mxEdgeStyle.WireConnector);
+
+		// This connector needs an mxEdgeSegmentHandler
+		mxGraphCreateHandler = mxGraph.prototype.createHandler;
+		mxGraph.prototype.createHandler = function (state) {
+			var result = null;
+
+			if (state != null) {
+				if (this.model.isEdge(state.cell)) {
+					var style = this.view.getEdgeStyle(state);
+
+					if (style == mxEdgeStyle.WireConnector) {
+						return new mxEdgeSegmentHandler(state);
+					}
+				}
+			}
+
+			return mxGraphCreateHandler.apply(this, arguments);
+		};
+	</script>
+
+	<link rel="stylesheet" href="../src/css/style.css">
+</head>
+
+<body onload="main(document.getElementById('graphContainer'))">
+	<div class="toolbar">
+		<ul class="button_list">
+			<li class="element_button_list"><button id="inzoom" class="element_button_list_button"></button>
+			</li>
+			<li class="element_button_list"><button id="outzoom" class="element_button_list_button"></button>
+			</li>
+			<li class="element_button_list"><button id="back" class="element_button_list_button"></button></li>
+			<li class="element_button_list"><button id="forward" class="element_button_list_button"></button></li>
+			<li class="element_button_list"><button id="showxml" class="element_button_list_button"></button></li>
+			<li class="element_button_list"><button id="downloadxml" class="element_button_list_button"></button></li>
+			<li class="element_button_list"><button id="deleteelem" class="element_button_list_button"></button>
+			</li>
+		</ul>
+
+		<button id="polusumm" class="polusumm">Полусумматор</button>
+		<div class="checkboxx">
+
+			<label class="toggle" id="wires">
+				<input class="toggle-checkbox" type="checkbox" id="modewire" class="check">
+				<div class="toggle-switch"></div>
+				<span class="toggle-label">Линии</span>
+			</label>
+			<label class="toggle" id="grid">
+				<input class="toggle-checkbox" class="check" type="checkbox" id="modegrid" checked>
+				<div class="toggle-switch"></div>
+				<span class="toggle-label">Сетка</span>
+			</label>
+
+		</div>
+	</div>
+	<div class="elements_workplace">
+		<ul class="sapr_elements_list">
+			<li class="bth">x * y</li>
+			<li class="bth">x + y</li>
+			<li class="bth">not x</li>
+			<li class="bth">x => y</li>
+			<li class="bth">x == y</li>
+		</ul>
+
+		<div id="graphContainer"
+			style="overflow:auto;position:relative;border:0px solid gray;background:url('images/wires-grid.gif');background-position:-1px 0px;cursor:crosshair;"
+			class="graphContainer">
+		</div>
+	</div>
+
+</body>
+
+</html>
